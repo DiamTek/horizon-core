@@ -1,0 +1,142 @@
+name: CI - Horizon Core Engine
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  POWERSHELL_TELEMETRY_OPTOUT: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify-docs:
+    name: Verify Documentation & Relative Links (PowerShell 7)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify Documentation & Relative Link Health
+        shell: pwsh
+        run: |
+          $broken = 0
+          Get-ChildItem -Recurse -Filter *.md | Where-Object { $_.FullName -notmatch '\\.git\\' } | ForEach-Object {
+              $file = $_.FullName
+              $content = [System.IO.File]::ReadAllText($file)
+              $dir = Split-Path -Parent $file
+              $matches = [regex]::Matches($content, '\[.*?\]\((?!https?://|mailto:|#)([^\)]+)\)')
+              foreach ($m in $matches) {
+                  $rawTarget = $m.Groups[1].Value.Split('#')[0].Trim()
+                  if ($rawTarget) {
+                      $resolved = [System.IO.Path]::GetFullPath((Join-Path $dir $rawTarget))
+                      if (-not (Test-Path -LiteralPath $resolved)) {
+                          Write-Host "::error file=$($_.Name)::Broken relative link: $rawTarget"
+                          $broken++
+                      }
+                  }
+              }
+          }
+          if ($broken -gt 0) {
+              Write-Host "Found $broken broken relative links in markdown documentation."
+              exit 1
+          }
+          Write-Host "All markdown relative documentation links verified successfully."
+
+  native-tests:
+    name: Native Test Suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Rust Toolchain (nightly)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cargo Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-nightly-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-nightly-
+
+      - name: Run Native Unit & Integration Tests
+        run: cargo test --workspace --verbose
+
+      - name: Build Release Binaries
+        run: cargo build --workspace --release
+
+  package-and-upload:
+    name: Package & Artifact Lifecycle Guard
+    runs-on: windows-latest
+    needs: [verify-docs, native-tests]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Purge Older CI Artifacts
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ESC = [char]27
+          $cReset  = "$ESC[0m"
+          $cBold   = "$ESC[1m"
+          $cCyan   = "$ESC[36m"
+          $cGreen  = "$ESC[32m"
+          $cYellow = "$ESC[33m"
+          $cGray   = "$ESC[90m"
+
+          Write-Host ""
+          Write-Host "${cCyan}${cBold}====================================================================================${cReset}"
+          Write-Host "${cCyan}${cBold}                      Storage Quota & Artifact Lifecycle Guard                      ${cReset}"
+          Write-Host "${cCyan}${cBold}====================================================================================${cReset}"
+
+          try {
+              $artifacts = gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts[] | select(.name == "horizon-core-build") | .id'
+              $count = 0
+              foreach ($id in $artifacts) {
+                  Write-Host "  ${cYellow}[CLEAN]${cReset} Purging prior artifact ID ${cBold}$id${cReset} to preserve storage quota..."
+                  gh api --method DELETE repos/${{ github.repository }}/actions/artifacts/$id 2>$null
+                  $count++
+              }
+              if ($count -eq 0) {
+                  Write-Host "  ${cGreen}[PASS] ${cReset} Artifact storage clean: No stale distribution artifacts found."
+              } else {
+                  Write-Host "  ${cGreen}[PASS] ${cReset} Successfully recycled $count previous artifact(s)."
+              }
+          } catch {
+              Write-Host "  ${cGray}[NOTICE]${cReset} Artifact retention check: Non-critical cleanup notice: $_"
+          }
+          Write-Host "${cCyan}${cBold}====================================================================================${cReset}"
+          Write-Host ""

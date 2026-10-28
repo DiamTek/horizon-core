@@ -1,0 +1,19 @@
+[package]
+name = "horizon-core-native"
+version = "0.1.0"
+edition = "2021"
+authors = ["DiamTek <contact@diamtek.org>"]
+license = "LGPL-3.0-only"
+description = "Low-level native engine core: SIMD AST evaluation, off-heap arena allocation, Rayon scheduling, and Panama FFM C-ABI bindings."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bumpalo = { version = "3.16", features = ["collections"] }
+rayon = "1.10"
+bytemuck = { version = "1.19", features = ["derive"] }
+log = "0.4"
+
+[dev-dependencies]
+criterion = "0.8"

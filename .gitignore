@@ -1,0 +1,26 @@
+# target
+target/
+**/*.rs.bk
+
+# Cargo
+Cargo.lock
+
+# Gradle / Java
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.project
+.classpath
+.settings/
+*.class
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
