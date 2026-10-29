@@ -125,11 +125,12 @@ flowchart TD
 
 * **`BandwidthGovernor`**:
   * **Frustum Prioritization**: Angularly weighted positive-definite priority function eliminating division-by-zero crashes while prioritizing chunks in front of the camera:
-
-    $$\vec{\Delta} = \vec{P}_{\text{chunk}} - \vec{P}_{\text{player}}, \quad \text{Weight}_{\text{angle}} = \max\left(0.0, \vec{V}_{\text{look}} \cdot \frac{\vec{\Delta}}{\|\vec{\Delta}\| + \epsilon}\right)$$
-
-    $$\text{Priority} = \frac{\alpha \cdot \text{Weight}_{\text{angle}} + (1.0 - \alpha)}{\|\vec{\Delta}\| + \epsilon} \quad (\alpha = 0.75, \epsilon = 0.001)$$
-
+    ```math
+    \vec{\Delta} = \vec{P}_{\text{chunk}} - \vec{P}_{\text{player}}, \quad \text{Weight}_{\text{angle}} = \max\left(0.0, \vec{V}_{\text{look}} \cdot \frac{\vec{\Delta}}{\|\vec{\Delta}\| + \epsilon}\right)
+    ```
+    ```math
+    \text{Priority} = \frac{\alpha \cdot \text{Weight}_{\text{angle}} + (1.0 - \alpha)}{\|\vec{\Delta}\| + \epsilon} \quad (\alpha = 0.75, \epsilon = 0.001)
+    ```
   * **Leaky-Bucket Rate Limiter**: High-precision token-bucket rate limiter enforcing configurable per-client upload ceilings (default 15 KB/s sustained with 30 KB burst capacity) with nanosecond token replenishment.
 
 ---
