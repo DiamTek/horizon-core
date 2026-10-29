@@ -158,6 +158,14 @@ cargo build --manifest-path crates/horizon-core-native/Cargo.toml --release
 ./gradlew build
 ```
 
+### Recommended JVM Flags for Minecraft Clients / Servers
+While `horizon-core` runs out-of-the-box on Java 17+ with zero configuration, for maximum throughput and sub-millisecond GC pause times on modern Java 21+ runtimes:
+```bash
+-XX:+UseZGC -XX:+ZGenerational -XX:+UnlockExperimentalVMOptions -XX:+AlwaysPreTouch --enable-preview
+```
+* `-XX:+UseZGC -XX:+ZGenerational`: Generational ZGC for stutter-free background garbage collection.
+* `--enable-preview`: Unlocks sub-2ns Project Panama FFM hardware downcalls (gracefully falls back to DirectByteBuffer on standard Java 17).
+
 ---
 
 ## 4. Continuous Integration
