@@ -65,8 +65,8 @@ pub unsafe fn neon_column_mesher(columns: &VoxelColumn16, out_faces: &mut [u64; 
         vst1q_u32(out_faces.as_mut_ptr().add(i) as *mut u32, exp_pos);
         vst1q_u32(out_faces.as_mut_ptr().add(i + 16) as *mut u32, exp_neg);
 
-        total_faces += (vaddvq_u32(vcntq_u8(vreinterpretq_u8_u32(exp_pos)))) as usize;
-        total_faces += (vaddvq_u32(vcntq_u8(vreinterpretq_u8_u32(exp_neg)))) as usize;
+        total_faces += (vaddlvq_u8(vcntq_u8(vreinterpretq_u8_u32(exp_pos)))) as usize;
+        total_faces += (vaddlvq_u8(vcntq_u8(vreinterpretq_u8_u32(exp_neg)))) as usize;
     }
     total_faces
 }
