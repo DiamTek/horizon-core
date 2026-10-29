@@ -1,4 +1,16 @@
-//! SIMD math and vectorized array evaluation operations.
+pub mod acoustic;
+pub mod ast_compiler;
+pub mod aurora;
+pub mod caustic;
+pub mod cloud_shadow;
+pub mod ephemeris;
+pub mod planetary_dynamics;
+pub mod precipitation;
+pub mod quaternion;
+pub mod radiance_cache;
+pub mod subsurface;
+pub mod thermal;
+pub mod weather_wind;
 
 #[no_mangle]
 pub extern "C" fn hz_simd_add_f32(a: *const f32, b: *const f32, out: *mut f32, count: usize) {
@@ -9,7 +21,6 @@ pub extern "C" fn hz_simd_add_f32(a: *const f32, b: *const f32, out: *mut f32, c
     let b_slice = unsafe { std::slice::from_raw_parts(b, count) };
     let out_slice = unsafe { std::slice::from_raw_parts_mut(out, count) };
 
-    // LLVM automatically vectorizes this chunked iterator with AVX2/AVX-512/NEON when target features are enabled
     for i in 0..count {
         out_slice[i] = a_slice[i] + b_slice[i];
     }
