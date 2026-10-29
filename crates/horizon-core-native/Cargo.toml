@@ -14,6 +14,10 @@ bumpalo = { version = "3.16", features = ["collections"] }
 rayon = "1.10"
 bytemuck = { version = "1.19", features = ["derive"] }
 log = "0.4"
+num_cpus = "1.16"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_System_Memory"] }
 
 [dev-dependencies]
 criterion = "0.8"
