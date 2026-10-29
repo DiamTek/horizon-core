@@ -49,6 +49,37 @@ tasks.register('cargoBuild', Exec) {
     }
 }
 
+jar {
+    manifest {
+        attributes(
+            'Implementation-Title': 'horizon-core',
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'TheHawk09 / DiamTek',
+            'Built-By': 'TheHawk09 / DiamTek',
+            'Description': 'Low-level native runtime foundation, SIMD vectorization, off-heap ring buffers, and Panama FFM bridge for the Horizon ecosystem.'
+        )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            pom {
+                name = 'horizon-core'
+                description = 'Low-level native runtime foundation, SIMD vectorization, off-heap ring buffers, and Panama FFM bridge for the Horizon ecosystem.'
+                developers {
+                    developer {
+                        id = 'TheHawk09'
+                        name = 'TheHawk09 / DiamTek'
+                        email = 'salexey09@gmail.com'
+                    }
+                }
+            }
+        }
+    }
+}
+
 test {
     dependsOn cargoBuild
     useJUnitPlatform()
