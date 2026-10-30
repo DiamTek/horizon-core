@@ -14,17 +14,64 @@ java {
     withJavadocJar()
 }
 
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+    }
+    java21 {
+        java {
+            srcDirs = ['src/main/java21']
+        }
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+    test {
+        compileClasspath += sourceSets.java21.output
+        runtimeClasspath += sourceSets.java21.output
+    }
+}
+
+configurations {
+    java21Implementation.extendsFrom implementation
+}
+
 tasks.withType(JavaCompile).configureEach {
+    javaCompiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.named('compileJava21Java', JavaCompile) {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll([
-        '--enable-preview'
-    ])
+    options.compilerArgs.addAll(['--enable-preview'])
+}
+
+tasks.named('compileJava', JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.release = 17
+}
+
+tasks.register('compileJava21', JavaCompile) {
+    description = 'Compiles Java 21 Multi-Release FFM sources'
+    source = sourceSets.java21.java
+    classpath = sourceSets.java21.compileClasspath
+    destinationDirectory = file("$buildDir/classes/java/java21")
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs.addAll(['--enable-preview'])
+}
+
+tasks.named('compileTestJava', JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs.addAll(['--enable-preview'])
+    dependsOn tasks.named('compileJava21')
 }
 
 tasks.withType(Javadoc).configureEach {
     options.encoding = 'UTF-8'
-    options.addBooleanOption('-enable-preview', true)
-    options.addStringOption('source', '21')
     options.addStringOption('Xdoclint:none', '-quiet')
 }
 
@@ -50,13 +97,18 @@ tasks.register('cargoBuild', Exec) {
 }
 
 jar {
+    dependsOn tasks.named('compileJava21')
+    into('META-INF/versions/21') {
+        from sourceSets.java21.output
+    }
     manifest {
         attributes(
+            'Multi-Release': 'true',
             'Implementation-Title': 'horizon-core',
             'Implementation-Version': project.version,
             'Implementation-Vendor': 'TheHawk09 / DiamTek',
             'Built-By': 'TheHawk09 / DiamTek',
-            'Description': 'Low-level native runtime foundation, SIMD vectorization, off-heap ring buffers, and Panama FFM bridge for the Horizon ecosystem.'
+            'Description': 'Multi-Release JAR runtime foundation (Java 17 baseline + Java 21 Panama FFM downcalls).'
         )
     }
 }
@@ -67,7 +119,7 @@ publishing {
             from components.java
             pom {
                 name = 'horizon-core'
-                description = 'Low-level native runtime foundation, SIMD vectorization, off-heap ring buffers, and Panama FFM bridge for the Horizon ecosystem.'
+                description = 'Multi-Release JAR runtime foundation (Java 17 baseline + Java 21 Panama FFM downcalls).'
                 developers {
                     developer {
                         id = 'TheHawk09'
@@ -82,6 +134,7 @@ publishing {
 
 test {
     dependsOn cargoBuild
+    dependsOn tasks.named('compileJava21')
     useJUnitPlatform()
     jvmArgs(['--enable-preview'])
     systemProperty 'horizon.native.path', file("target/release/${System.mapLibraryName('horizon_core_native')}").absolutePath
