@@ -103,18 +103,24 @@ impl SimdAstProgram {
 }
 
 // C-ABI Exports
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
 #[no_mangle]
 pub extern "C" fn hz_ast_program_create() -> *mut SimdAstProgram {
-    Box::into_raw(Box::new(SimdAstProgram::new()))
+    catch_unwind(AssertUnwindSafe(|| {
+        Box::into_raw(Box::new(SimdAstProgram::new()))
+    })).unwrap_or(std::ptr::null_mut())
 }
 
 #[no_mangle]
 pub extern "C" fn hz_ast_program_destroy(program: *mut SimdAstProgram) {
-    if !program.is_null() {
-        unsafe {
-            drop(Box::from_raw(program));
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        if !program.is_null() {
+            unsafe {
+                drop(Box::from_raw(program));
+            }
         }
-    }
+    }));
 }
 
 #[no_mangle]
@@ -126,27 +132,29 @@ pub extern "C" fn hz_ast_program_push(
     dst: u8,
     immediate: f32,
 ) -> i32 {
-    if program.is_null() || opcode > 6 {
-        return -1;
-    }
-    let program = unsafe { &mut *program };
-    let op = match opcode {
-        0 => SimdOpcode::Constant,
-        1 => SimdOpcode::Add,
-        2 => SimdOpcode::Mul,
-        3 => SimdOpcode::Min,
-        4 => SimdOpcode::Max,
-        5 => SimdOpcode::Clamp,
-        _ => SimdOpcode::Abs,
-    };
-    program.push(SimdInstruction {
-        opcode: op,
-        src_reg_a: src_a,
-        src_reg_b: src_b,
-        dst_reg: dst,
-        immediate,
-    });
-    0
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if program.is_null() || opcode > 6 || src_a >= 8 || src_b >= 8 || dst >= 8 {
+            return -1;
+        }
+        let program = unsafe { &mut *program };
+        let op = match opcode {
+            0 => SimdOpcode::Constant,
+            1 => SimdOpcode::Add,
+            2 => SimdOpcode::Mul,
+            3 => SimdOpcode::Min,
+            4 => SimdOpcode::Max,
+            5 => SimdOpcode::Clamp,
+            _ => SimdOpcode::Abs,
+        };
+        program.push(SimdInstruction {
+            opcode: op,
+            src_reg_a: src_a,
+            src_reg_b: src_b,
+            dst_reg: dst,
+            immediate,
+        });
+        0
+    })).unwrap_or(-1)
 }
 
 #[no_mangle]
@@ -154,11 +162,13 @@ pub extern "C" fn hz_ast_program_execute(
     program: *const SimdAstProgram,
     rf: *mut SimdRegisterFile,
 ) -> i32 {
-    if program.is_null() || rf.is_null() {
-        return -1;
-    }
-    let program = unsafe { &*program };
-    let rf = unsafe { &mut *rf };
-    program.execute(rf);
-    0
+    catch_unwind(AssertUnwindSafe(|| {
+        if program.is_null() || rf.is_null() {
+            return -1;
+        }
+        let program = unsafe { &*program };
+        let rf = unsafe { &mut *rf };
+        program.execute(rf);
+        0
+    })).unwrap_or(-1)
 }

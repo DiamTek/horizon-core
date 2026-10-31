@@ -7,7 +7,6 @@ import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SuppressWarnings("preview")
 class HorizonNativeBridgeTest {
 
     @Test

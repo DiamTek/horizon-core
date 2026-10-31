@@ -76,6 +76,8 @@ flowchart TD
 * **Castagnoli CRC32C Engine**: Hardware-accelerated polynomial ($0x1EDC6F41$) verification running at bus saturation speeds (>12 GB/s per core).
 * **Write-Ahead Log (`.hzwal`)**: Transaction replay mechanism recovering committed chunk micro-transactions after sudden process termination or power loss.
 * **`SelfHealingRegionManager` & `SuperBlockParityStripe`**: Self-healing 4096-byte sector parity computation, recovering corrupted sectors using 64-bit parallel XOR parity accumulation across 31-sector super-blocks.
+* **Epoch-Based RCU Region Compactor (`storage/rcu_region.rs`)**: Online defragmentation via versioned generation files (.X.Z.<gen>.hzregion) and in-memory lock-free mutation journals, preventing Windows `ERROR_USER_MAPPED_FILE` (0x4C8) violations.
+* **Region File Descriptor Pool**: LRU handle cache capped at 64 active descriptors to prevent OS kernel descriptor exhaustion under high-velocity traversal.
 * **Hierarchical Sparse Voxel Octree (`morton_svo.rs`)**: Pointerless SVO node encoding (`SvoNodeGPU`) using 64-bit Morton Z-order curve spatial hashing.
 
 ### 2.4 SIMD Math, Geometry Kernels & Mesh Format (`crates/horizon-core-native/src/mesher/` & `simd/`)
@@ -83,6 +85,7 @@ flowchart TD
 * **DensityFunction AST Bytecode JIT (`simd/ast_compiler.rs`)**: Compiles procedural worldgen density graphs into 16-lane parallel SIMD execution stacks.
 * **Bitwise Column Mesher (`mesher/simd_column.rs`)**: Vectorized face culling evaluating 16 vertical block columns simultaneously via bitwise directional shifts ($V_{\text{solid}} \ \& \ \sim(V_{\text{solid}} \ll 1)$) in 0.12 cycles per block.
 * **64-Bit Packed Vertex Encoding (`mesher/vertex_layout.rs`)**: Reconciled 8-byte vertex packing: local coordinates, 1024-block vertical height, cardinal normals, 4-level ambient occlusion, dual-channel lighting, material IDs, and 18-bit dual-mode biome/flow tinting.
+* **Bandwidth Governor & Frustum Priority (`simd/bandwidth_governor.rs`)**: Token-bucket rate limiter (15 KB/s sustained, 30 KB/s burst) and positive-definite angularly weighted LOD priority without division-by-zero crashes.
 * **Virtual Geometry Meshlets (`mesher/meshlet.rs`)**: 64-vertex cluster descriptors with cone backface culling (`hz_meshlet_cone_cull`).
 * **Subterranean Cavern Culler (`mesher/subterranean.rs`)**: Dual-elevation roof and floor tracking for zero-cost cavern geometry elimination.
 * **Smallest-Three Quaternion Compression (`simd/quaternion.rs`)**: Quantizes 4-component unit quaternions into 32 bits with sender-side sign normalization.

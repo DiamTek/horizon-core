@@ -167,19 +167,25 @@ impl SpscRingBuffer {
     }
 }
 
-// C-ABI Exports for Java Panama FFM
+// C-ABI Exports for Java Panama FFM — all wrapped in catch_unwind for panic safety
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
 #[no_mangle]
 pub extern "C" fn hz_spsc_create() -> *mut SpscRingBuffer {
-    Box::into_raw(SpscRingBuffer::new())
+    catch_unwind(AssertUnwindSafe(|| {
+        Box::into_raw(SpscRingBuffer::new())
+    })).unwrap_or(std::ptr::null_mut())
 }
 
 #[no_mangle]
 pub extern "C" fn hz_spsc_destroy(ring: *mut SpscRingBuffer) {
-    if !ring.is_null() {
-        unsafe {
-            drop(Box::from_raw(ring));
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        if !ring.is_null() {
+            unsafe {
+                drop(Box::from_raw(ring));
+            }
         }
-    }
+    }));
 }
 
 #[no_mangle]
@@ -194,25 +200,27 @@ pub extern "C" fn hz_spsc_push_chunk_task(
     data_length: u32,
     sequence_tag: u32,
 ) -> i32 {
-    if ring.is_null() {
-        return -1;
-    }
-    let ring = unsafe { &mut *ring };
-    let entry = FfiChunkTaskPayload {
-        chunk_x,
-        chunk_z,
-        dimension_id,
-        lod_tier,
-        flags,
-        data_ptr,
-        data_length,
-        sequence_tag,
-    };
-    if ring.try_push(entry) {
-        0
-    } else {
-        1 // Full
-    }
+    catch_unwind(AssertUnwindSafe(|| {
+        if ring.is_null() {
+            return -1;
+        }
+        let ring = unsafe { &mut *ring };
+        let entry = FfiChunkTaskPayload {
+            chunk_x,
+            chunk_z,
+            dimension_id,
+            lod_tier,
+            flags,
+            data_ptr,
+            data_length,
+            sequence_tag,
+        };
+        if ring.try_push(entry) {
+            0
+        } else {
+            1 // Full
+        }
+    })).unwrap_or(-1)
 }
 
 #[no_mangle]
@@ -220,17 +228,19 @@ pub extern "C" fn hz_spsc_pop_chunk_task(
     ring: *mut SpscRingBuffer,
     out_task: *mut FfiChunkTaskPayload,
 ) -> i32 {
-    if ring.is_null() || out_task.is_null() {
-        return -1;
-    }
-    let ring = unsafe { &mut *ring };
-    match ring.try_pop() {
-        Some(entry) => {
-            unsafe { *out_task = entry };
-            0
+    catch_unwind(AssertUnwindSafe(|| {
+        if ring.is_null() || out_task.is_null() {
+            return -1;
         }
-        None => 1, // Empty
-    }
+        let ring = unsafe { &mut *ring };
+        match ring.try_pop() {
+            Some(entry) => {
+                unsafe { *out_task = entry };
+                0
+            }
+            None => 1, // Empty
+        }
+    })).unwrap_or(-1)
 }
 
 #[no_mangle]
@@ -239,36 +249,42 @@ pub extern "C" fn hz_spsc_pop_batch(
     destination: *mut FfiChunkTaskPayload,
     max_count: usize,
 ) -> usize {
-    if ring.is_null() || destination.is_null() || max_count == 0 {
-        return 0;
-    }
-    let ring = unsafe { &*ring };
-    let slice = unsafe { std::slice::from_raw_parts_mut(destination, max_count) };
-    ring.pop_batch(slice, max_count)
+    catch_unwind(AssertUnwindSafe(|| {
+        if ring.is_null() || destination.is_null() || max_count == 0 {
+            return 0;
+        }
+        let ring = unsafe { &*ring };
+        let slice = unsafe { std::slice::from_raw_parts_mut(destination, max_count) };
+        ring.pop_batch(slice, max_count)
+    })).unwrap_or(0)
 }
 
 #[no_mangle]
 pub extern "C" fn hz_spsc_verify_and_recover(ring: *mut SpscRingBuffer) -> i32 {
-    if ring.is_null() {
-        return -1;
-    }
-    let ring = unsafe { &*ring };
-    if ring.verify_and_recover() {
-        0
-    } else {
-        1 // Recovered from desynchronization
-    }
+    catch_unwind(AssertUnwindSafe(|| {
+        if ring.is_null() {
+            return -1;
+        }
+        let ring = unsafe { &*ring };
+        if ring.verify_and_recover() {
+            0
+        } else {
+            1 // Recovered from desynchronization
+        }
+    })).unwrap_or(-1)
 }
 
 #[no_mangle]
 pub extern "C" fn hz_spsc_init_in_place(raw_ptr: *mut u8, total_bytes: usize) -> *mut SpscRingBuffer {
-    if raw_ptr.is_null() {
-        return std::ptr::null_mut();
-    }
-    match SpscRingBuffer::init_in_place(raw_ptr, total_bytes) {
-        Some(ring) => ring as *mut SpscRingBuffer,
-        None => std::ptr::null_mut(),
-    }
+    catch_unwind(AssertUnwindSafe(|| {
+        if raw_ptr.is_null() {
+            return std::ptr::null_mut();
+        }
+        match SpscRingBuffer::init_in_place(raw_ptr, total_bytes) {
+            Some(ring) => ring as *mut SpscRingBuffer,
+            None => std::ptr::null_mut(),
+        }
+    })).unwrap_or(std::ptr::null_mut())
 }
 
 #[no_mangle]

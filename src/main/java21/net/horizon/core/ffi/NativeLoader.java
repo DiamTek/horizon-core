@@ -13,7 +13,6 @@ import java.util.Locale;
  * Unpacks the platform-appropriate native binary (.dll on Windows, .so on Linux, .dylib on macOS)
  * from JAR resources or local build artifacts into temporary off-heap storage and links SymbolLookup.
  */
-@SuppressWarnings("preview")
 public final class NativeLoader {
 
     private static volatile boolean loaded = false;

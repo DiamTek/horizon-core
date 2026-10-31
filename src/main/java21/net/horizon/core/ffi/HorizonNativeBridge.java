@@ -12,7 +12,6 @@ import java.util.Objects;
  * Delivers sub-2ns downcalls for arena allocations, SPSC queues, CRC32C validation,
  * SIMD vector math, and quaternion compression.
  */
-@SuppressWarnings("preview")
 public final class HorizonNativeBridge {
 
     private static final Linker LINKER = Linker.nativeLinker();

@@ -13,8 +13,18 @@ pub struct VoxelColumn16 {
 
 pub type MesherFn = unsafe fn(columns: &VoxelColumn16, out_faces: &mut [u64; 64]) -> usize;
 
-/// Dynamic function pointer dispatched at engine initialization via CPUID
-pub static mut ACTIVE_MESHER_KERNEL: MesherFn = scalar_mesher_fallback;
+use core::sync::atomic::{AtomicPtr, Ordering};
+
+static ACTIVE_MESHER_KERNEL: AtomicPtr<()> = AtomicPtr::new(scalar_mesher_fallback as *mut ());
+
+pub fn get_active_mesher() -> MesherFn {
+    let ptr = ACTIVE_MESHER_KERNEL.load(Ordering::Acquire);
+    unsafe { core::mem::transmute::<*mut (), MesherFn>(ptr) }
+}
+
+pub fn set_active_mesher(f: MesherFn) {
+    ACTIVE_MESHER_KERNEL.store(f as *mut (), Ordering::Release);
+}
 
 /// AVX-512 Mesher Kernel: Processes 16 columns simultaneously (512-bit registers)
 #[cfg(target_arch = "x86_64")]
@@ -90,24 +100,18 @@ pub fn init_mesher_dispatch() {
     #[cfg(target_arch = "x86_64")]
     {
         if is_x86_feature_detected!("avx512f") && is_x86_feature_detected!("avx512bw") {
-            unsafe {
-                ACTIVE_MESHER_KERNEL = avx512_column_mesher;
-            }
+            set_active_mesher(avx512_column_mesher);
             return;
         }
     }
     #[cfg(target_arch = "aarch64")]
     {
         if std::arch::is_aarch64_feature_detected!("neon") {
-            unsafe {
-                ACTIVE_MESHER_KERNEL = neon_column_mesher;
-            }
+            set_active_mesher(neon_column_mesher);
             return;
         }
     }
-    unsafe {
-        ACTIVE_MESHER_KERNEL = scalar_mesher_fallback;
-    }
+    set_active_mesher(scalar_mesher_fallback);
 }
 
 // C-ABI Export
@@ -117,15 +121,17 @@ pub extern "C" fn hz_mesher_extract_faces(
     out_faces: *mut u64,
     max_faces: usize,
 ) -> usize {
-    if columns.is_null() || out_faces.is_null() || max_faces < 64 {
-        return 0;
-    }
-    let columns = unsafe { &*columns };
-    let mut buffer = [0u64; 64];
-    let written = unsafe { (ACTIVE_MESHER_KERNEL)(columns, &mut buffer) };
-    let copy_count = written.min(max_faces).min(64);
-    unsafe {
-        std::ptr::copy_nonoverlapping(buffer.as_ptr(), out_faces, copy_count);
-    }
-    written
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if columns.is_null() || out_faces.is_null() || max_faces < 64 {
+            return 0;
+        }
+        let columns = unsafe { &*columns };
+        let mut buffer = [0u64; 64];
+        let written = unsafe { (get_active_mesher())(columns, &mut buffer) };
+        let copy_count = written.min(max_faces).min(64);
+        unsafe {
+            std::ptr::copy_nonoverlapping(buffer.as_ptr(), out_faces, copy_count);
+        }
+        written
+    })).unwrap_or(0)
 }

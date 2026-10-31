@@ -8,7 +8,6 @@ import java.nio.ByteBuffer;
  * Modern Java 21+ Project Panama Memory Accessor (Minecraft 1.20.5+ / 1.21+ on HotSpot 21/25).
  * Delivers sub-2ns direct native downcalls and MemorySegment arenas.
  */
-@SuppressWarnings("preview")
 public final class PanamaMemoryAccessor implements NativeMemoryAccessor {
 
     private final Arena sharedArena;

@@ -151,13 +151,17 @@ pub fn compute_sector_parity(data: &[u8], parity_out: &mut [u8; SECTOR_SIZE]) {
 }
 
 // C-ABI Exports
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
 #[no_mangle]
 pub extern "C" fn hz_wal_crc32c(data: *const u8, length: usize) -> u32 {
-    if data.is_null() || length == 0 {
-        return 0;
-    }
-    let slice = unsafe { std::slice::from_raw_parts(data, length) };
-    crc32c(slice)
+    catch_unwind(AssertUnwindSafe(|| {
+        if data.is_null() || length == 0 {
+            return 0;
+        }
+        let slice = unsafe { std::slice::from_raw_parts(data, length) };
+        crc32c(slice)
+    })).unwrap_or(0)
 }
 
 #[no_mangle]
@@ -166,18 +170,20 @@ pub extern "C" fn hz_wal_verify_record(
     payload: *const u8,
     payload_len: usize,
 ) -> i32 {
-    if header.is_null() || (payload.is_null() && payload_len > 0) {
-        return -1;
-    }
-    let header = unsafe { &*header };
-    if !header.is_valid() || header.payload_length as usize != payload_len {
-        return 1;
-    }
-    let slice = unsafe { std::slice::from_raw_parts(payload, payload_len) };
-    let computed_crc = crc32c(slice);
-    if computed_crc == header.crc32c {
-        0
-    } else {
-        2
-    }
+    catch_unwind(AssertUnwindSafe(|| {
+        if header.is_null() || (payload.is_null() && payload_len > 0) {
+            return -1;
+        }
+        let header = unsafe { &*header };
+        if !header.is_valid() || header.payload_length as usize != payload_len {
+            return 1;
+        }
+        let slice = unsafe { std::slice::from_raw_parts(payload, payload_len) };
+        let computed_crc = crc32c(slice);
+        if computed_crc == header.crc32c {
+            0
+        } else {
+            2
+        }
+    })).unwrap_or(-1)
 }

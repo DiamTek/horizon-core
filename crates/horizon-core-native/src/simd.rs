@@ -1,6 +1,7 @@
 pub mod acoustic;
 pub mod ast_compiler;
 pub mod aurora;
+pub mod bandwidth_governor;
 pub mod caustic;
 pub mod cloud_shadow;
 pub mod ephemeris;
