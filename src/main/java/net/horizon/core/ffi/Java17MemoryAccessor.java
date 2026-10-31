@@ -9,7 +9,6 @@ import sun.misc.Unsafe;
  * Java 17 Baseline Memory Accessor (Compatible with Minecraft 1.20.1 - 1.20.4 on HotSpot/JRE 17).
  * Uses reflection and direct memory invocations for clean cross-compilation across all JDKs.
  */
-@SuppressWarnings("removal")
 public final class Java17MemoryAccessor implements NativeMemoryAccessor {
 
     private static final Unsafe UNSAFE;

@@ -19,5 +19,8 @@ num_cpus = "1.16"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_System_Memory"] }
 
+[target.'cfg(not(windows))'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 criterion = "0.8"
