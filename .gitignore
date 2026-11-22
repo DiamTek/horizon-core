@@ -24,3 +24,8 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Native Binaries
+*.dll
+*.so
+*.dylib

@@ -97,9 +97,19 @@ tasks.register('cargoBuild', Exec) {
 }
 
 jar {
+    if (!project.hasProperty('skipCargo')) {
+        dependsOn cargoBuild
+    }
     dependsOn tasks.named('compileJava21')
     into('META-INF/versions/21') {
         from sourceSets.java21.output
+    }
+    def arch = (System.getProperty("os.arch").toLowerCase().contains("aarch64") ||
+                System.getProperty("os.arch").toLowerCase().contains("arm64")) ? "arm64" : "x64"
+    into("natives/${arch}") {
+        from("${rootDir}/target/release") {
+            include "*.dll", "*.so", "*.dylib"
+        }
     }
     manifest {
         attributes(

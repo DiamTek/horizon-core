@@ -86,10 +86,16 @@ pub extern "system" fn Java_net_horizon_nativecore_HorizonNativeBridge_computeDe
     world_z: i32,
     seed: i64,
 ) -> f32 {
-    let fx = (world_x as f32) * 0.005;
-    let fz = (world_z as f32) * 0.005;
-    let continental = (fx + ((seed & 0xFFFF) as f32)).sin() * (fz + (((seed >> 16) & 0xFFFF) as f32)).cos();
-    let detail = ((world_x as f32) * 0.02).sin() * ((world_z as f32) * 0.02).sin() * 0.25;
-    let base_height = 64.0 + (continental * 32.0) + (detail * 16.0);
+    let nx = ((world_x as f64) + ((seed & 0x7FFF) as f64)) * 0.0018;
+    let nz = ((world_z as f64) + (((seed >> 16) & 0x7FFF) as f64)) * 0.0018;
+
+    let cont = nx.sin() * nz.cos() + 0.5 * (nx * 2.1 + 1.2).sin() * (nz * 2.1 + 0.8).cos();
+    let erosion = (nx * 3.7 - 0.5).cos() * (nz * 3.7 + 0.3).sin();
+    let pv = (nx * 5.3).sin() * (nz * 5.3).sin();
+
+    let continental_height = 63.0 + cont * 38.0;
+    let mountain_peaks = pv.max(0.0) * (1.0 - erosion.abs()) * 75.0;
+    let base_height = (continental_height + mountain_peaks).max(50.0).min(240.0) as f32;
+
     base_height - (world_y as f32)
 }
